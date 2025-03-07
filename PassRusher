@@ -13,13 +13,19 @@ df=pd.read_csv(r"C:\Users\quint\OneDrive\Desktop\Python\PassRusherProfile\Data\N
 ## create a dictionary of important stats that are relevant to a pass rusher then set the unique identifier as the player_id for adequate tracking over various datasets
 df_filter=df[["player", "position", "player_id","player_game_count", "assists", "franchise_id", "hits", "hurries", "misses", "pass_rush_percent", "pass_rush_snaps", "pass_snaps", "pressures", "prp", "sacks", "stops", "tackles"]]
 df_filter.set_index("player_id", inplace=True)
+#removed all corners from the dataset
 df_filter=df_filter[df_filter["position"]!= "CB"]
-df_filtered=df_filter[df_filter["pass_rush_percent"]>=75]
-print(df_filtered.head())
-print(len(df_filtered)) 
-
+#used to determine the pass rush percentage cutoff to filter out players who are not primarily pass rushers (Not active in relevant pythons runs, therefore added as a comment)
+# what is the proper way to host code thats no longer useful, like the histogram?
+'''
 plt.hist(df_filter["pass_rush_percent"], bins=20, edgecolor="black")
 plt.xlabel("Pass Rush Percentage (pass_rush_percent)")
 plt.ylabel("Number of Players")
 plt.title("Distribution of Pass Rush %")
-plt.show()
+'''
+#determined 85 was a contextually valid cutoff after validating with the histogram
+#Maybe I can find a better way to determine this cutoff in the future?
+df_filtered=df_filter[df_filter["pass_rush_percent"]>=85]
+print(df_filtered.head())
+print(len(df_filtered)) 
+
