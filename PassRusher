@@ -5,6 +5,8 @@ import seaborn as sns
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import r2_score
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import PolynomialFeatures
 import statsmodels.api as sm
 
 ## Load last year's NFL data
@@ -30,8 +32,16 @@ print(df_filtered.head())
 print(len(df_filtered)) 
 
 #selecting only numeric features for regression analysis. Also chose to remove redundant and unimportant features (pass_snaps, player_game_count, stops, tackles)
-numeric_features = ["assists", "hits", "hurries", "misses", "pass_rush_percent", "pass_rush_snaps", "pressures", "prp", "sacks", "stops", "tackles"]
+numeric_features = [ "hits", "hurries", "misses", "sacks", "tackles"]
 df_numeric = df_filter[numeric_features]
+
+"""#must validate that theres no collinearity in our features. This was accounted for with the removal of redundant features
+corr_matrix = df_numeric.corr()
+# Plot heatmap
+plt.figure(figsize=(10,8))
+sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", fmt=".2f")
+plt.title("Feature Correlation Heatmap")
+plt.show()"""
 
 #we must set up the standardization first to ensure a sack count can be compared to a snap count, which are on different scales
 scaler = StandardScaler()
@@ -68,8 +78,17 @@ for stat, result in regression_results.items():
 # Compute correlation matrix
 corr_matrix = df_numeric.corr()
 
-# Plot heatmap
-plt.figure(figsize=(10,8))
-sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", fmt=".2f")
-plt.title("Feature Correlation Heatmap")
-plt.show()
+degree = 2  
+model = make_pipeline(PolynomialFeatures(degree), LinearRegression())
+
+# Example: Fit a polynomial regression model
+X = df_scaled.drop(columns=["sacks"])  # Predicting sacks
+y = df_scaled["sacks"]
+
+model.fit(X, y)
+y_pred = model.predict(X)
+
+# Check R² after adding polynomial features
+r2_poly = model.score(X, y)
+print(f"Polynomial R² for Sacks: {r2_poly:.3f}")
+
