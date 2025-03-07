@@ -29,3 +29,47 @@ df_filtered=df_filter[df_filter["pass_rush_percent"]>=85]
 print(df_filtered.head())
 print(len(df_filtered)) 
 
+#selecting only numeric features for regression analysis. Also chose to remove redundant and unimportant features (pass_snaps, player_game_count, stops, tackles)
+numeric_features = ["assists", "hits", "hurries", "misses", "pass_rush_percent", "pass_rush_snaps", "pressures", "prp", "sacks", "stops", "tackles"]
+df_numeric = df_filter[numeric_features]
+
+#we must set up the standardization first to ensure a sack count can be compared to a snap count, which are on different scales
+scaler = StandardScaler()
+df_scaled = pd.DataFrame(scaler.fit_transform(df_numeric), columns=numeric_features, index=df_numeric.index)
+
+regression_results = {}
+# Loop through each stat as the output variable
+for output_stat in df_scaled.columns:
+    # Define input (X) and output (y)
+    X = df_scaled.drop(columns=[output_stat])  # Use all other stats as predictors
+    y = df_scaled[output_stat]  # Set the current stat as the output
+
+    # Train the regression model
+    model = LinearRegression()
+    model.fit(X, y)
+
+    # Get R² score (model performance)
+    r2 = model.score(X, y)
+
+    # Get regression coefficients (feature importance)
+    coef_dict = dict(zip(X.columns, model.coef_))
+
+    # Store results
+    regression_results[output_stat] = {"R² Score": r2, "Coefficients": coef_dict}
+
+# Print results
+for stat, result in regression_results.items():
+    print(f"\n==== Regression for {stat} ====")
+    print(f"R² Score: {result['R² Score']:.3f}")
+    print("Feature Coefficients:")
+    for feature, coef in result["Coefficients"].items():
+        print(f"  {feature}: {coef:.3f}")
+
+# Compute correlation matrix
+corr_matrix = df_numeric.corr()
+
+# Plot heatmap
+plt.figure(figsize=(10,8))
+sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", fmt=".2f")
+plt.title("Feature Correlation Heatmap")
+plt.show()
