@@ -1,0 +1,35 @@
+import pandas as pd 
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import r2_score
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import PolynomialFeatures
+import statsmodels.api as sm
+import re
+
+#load the nfl data we will build our regression model with
+NFLStats=pd.read_csv(r"C:\Users\quint\OneDrive\Desktop\Python\PassRusherProfile\Data\NFLData2024.csv")
+
+#load all of last years salary data (accurate as of 3/8/2025)
+SalaryStats=pd.read_excel(r"C:\Users\quint\OneDrive\Desktop\Python\PassRusherProfile\Data\SalaryData2024.xlsx")
+
+# keep only relevant data from the nflstats (ignoring LHS vs RHS data)
+NFL_filter=NFLStats[["player", "team_name", "position", "player_id","player_game_count", "assists", "franchise_id", "hits", "hurries", "misses", "pass_rush_percent", "pass_rush_snaps", "pass_snaps", "pressures", "prp", "sacks", "stops", "tackles"]]
+
+#keep only relevant dat from the salary stats (ignoring team name as this will come from NFL_Filter once merged)
+Salary_filter=SalaryStats[["Player", "Age","Total Value", "Avg./Year", "Total Guaranteed", "Fully Guaranteed", "Free Agency"]]
+
+#used chat for this function, will need to verify and validate!!!!
+def standardize_name(name):
+    name = name.lower().strip()  # Lowercase & remove leading/trailing spaces
+    name = re.sub(r"[^\w\s]", "", name)  # Remove special characters (apostrophes, hyphens, etc.)
+    name = re.sub(r"\s+", " ", name)  # Replace multiple spaces with a single space
+    return name
+
+#standardizes names to make merging more accurate
+NFL_filter["player"] = NFL_filter["player"].apply(standardize_name)
+Salary_filter["Player"] = Salary_filter["Player"].apply(standardize_name)
+
