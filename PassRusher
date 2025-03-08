@@ -31,58 +31,92 @@ df_filtered=df_filter[df_filter["pass_rush_percent"]>=85]
 print(df_filtered.head())
 print(len(df_filtered)) 
 
-#selecting only numeric features for regression analysis. Also chose to remove redundant and unimportant features (pass_snaps, player_game_count, stops, tackles)
-numeric_features = [ "hits", "hurries", "misses", "sacks", "tackles"]
+#selecting only numeric features for regression analysis. Also chose to remove redundant and unimportant features (pass_snaps, player_game_count)
+numeric_features = ["assists","pass_rush_percent","pass_rush_snaps","pressures","prp","stops","hits", "hurries", "misses", "sacks", "tackles"]
 df_numeric = df_filter[numeric_features]
 
-"""#must validate that theres no collinearity in our features. This was accounted for with the removal of redundant features
+#must validate that theres no collinearity in our features. This was accounted for with the removal of redundant features
 corr_matrix = df_numeric.corr()
 # Plot heatmap
 plt.figure(figsize=(10,8))
 sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", fmt=".2f")
 plt.title("Feature Correlation Heatmap")
-plt.show()"""
+plt.show()
 
 #we must set up the standardization first to ensure a sack count can be compared to a snap count, which are on different scales
 scaler = StandardScaler()
 df_scaled = pd.DataFrame(scaler.fit_transform(df_numeric), columns=numeric_features, index=df_numeric.index)
 
 regression_results = {}
-# Loop through each stat as the output variable
-for output_stat in df_scaled.columns:
-    # Define input (X) and output (y)
-    X = df_scaled.drop(columns=[output_stat])  # Use all other stats as predictors
-    y = df_scaled[output_stat]  # Set the current stat as the output
 
-    # Train the regression model
-    model = LinearRegression()
-    model.fit(X, y)
+### **Regression for Tackles (excluding "hurries" as input)**
+X_tackles = df_scaled.drop(columns=["tackles", "hurries"])  # Removing "hurries"
+y_tackles = df_scaled["tackles"]
 
-    # Get R² score (model performance)
-    r2 = model.score(X, y)
+model_tackles = LinearRegression()
+model_tackles.fit(X_tackles, y_tackles)
 
-    # Get regression coefficients (feature importance)
-    coef_dict = dict(zip(X.columns, model.coef_))
+regression_results["tackles"] = {
+    "R² Score": model_tackles.score(X_tackles, y_tackles),
+    "Coefficients": dict(zip(X_tackles.columns, model_tackles.coef_))
+}
 
-    # Store results
-    regression_results[output_stat] = {"R² Score": r2, "Coefficients": coef_dict}
+#sacks, excluding pressures and stops
+X_sacks = df_scaled.drop(columns=["sacks", "pressures", "stops"]) 
+y_sacks = df_scaled["sacks"]
 
-# Print results
+model_sacks = LinearRegression()
+model_sacks.fit(X_sacks, y_sacks)
+
+regression_results["sacks"] = {
+    "R² Score": model_sacks.score(X_sacks, y_sacks),
+    "Coefficients": dict(zip(X_sacks.columns, model_sacks.coef_))
+}
+#hurries, excluding pressures and snaps
+X_hurries = df_scaled.drop(columns=["hurries", "pressures", "pass_rush_snaps"])  
+y_hurries = df_scaled["hurries"]
+
+model_hurries = LinearRegression()
+model_hurries.fit(X_hurries, y_hurries)
+
+regression_results["hurries"] = {
+    "R² Score": model_hurries.score(X_hurries, y_hurries),
+    "Coefficients": dict(zip(X_hurries.columns, model_hurries.coef_))
+}
+#misses, excluding nothing
+X_misses = df_scaled.drop(columns=["misses", "tackles"])  # Removing "tackles"
+y_misses = df_scaled["misses"]
+
+model_misses = LinearRegression()
+model_misses.fit(X_misses, y_misses)
+
+regression_results["misses"] = {
+    "R² Score": model_misses.score(X_misses, y_misses),
+    "Coefficients": dict(zip(X_misses.columns, model_misses.coef_))
+}
+#hits, excluding pressures
+X_hits = df_scaled.drop(columns=["hits", "pressures"]) 
+y_hits = df_scaled["hits"]
+
+model_hits = LinearRegression()
+model_hits.fit(X_hits, y_hits)
+
+regression_results["hits"] = {
+    "R² Score": model_hits.score(X_hits, y_hits),
+    "Coefficients": dict(zip(X_hits.columns, model_hits.coef_))
+}
+#print all
 for stat, result in regression_results.items():
     print(f"\n==== Regression for {stat} ====")
-    print(f"R² Score: {result['R² Score']:.3f}")
+    print(f"R² Score: {result['R² Score']:.5f}")
     print("Feature Coefficients:")
     for feature, coef in result["Coefficients"].items():
-        print(f"  {feature}: {coef:.3f}")
-
-# Compute correlation matrix
-corr_matrix = df_numeric.corr()
-
+        print(f"  {feature}: {coef:.5f}")
 degree = 2  
 model = make_pipeline(PolynomialFeatures(degree), LinearRegression())
 
 # Example: Fit a polynomial regression model
-X = df_scaled.drop(columns=["sacks"])  # Predicting sacks
+X = df_scaled.drop(columns=["sacks", "pressures", "stops"])  # Predicting sacks
 y = df_scaled["sacks"]
 
 model.fit(X, y)
