@@ -22,6 +22,11 @@ NFL_filter=NFLStats[["player", "team_name", "position", "player_id","player_game
 #keep only relevant dat from the salary stats (ignoring team name as this will come from NFL_Filter once merged)
 Salary_filter=SalaryStats[["Player", "Age","Total Value", "Avg./Year", "Total Guaranteed", "Fully Guaranteed", "Free Agency"]]
 
+#remove all corners, safeties, and linebackers from the dataset
+NFL_filter=NFL_filter[NFL_filter["position"]!= "CB"]
+NFL_filter=NFL_filter[NFL_filter["position"]!= "S"]
+NFL_filter=NFL_filter[NFL_filter["position"]!= "LB"]
+
 #used chat for this function, will need to verify and validate!!!!
 def standardize_name(name):
     name = name.lower().strip()  # Lowercase & remove leading/trailing spaces
@@ -33,3 +38,8 @@ def standardize_name(name):
 NFL_filter["player"] = NFL_filter["player"].apply(standardize_name)
 Salary_filter["Player"] = Salary_filter["Player"].apply(standardize_name)
 
+print(NFL_filter.head())
+print(len(NFL_filter)) 
+
+print(Salary_filter.head())
+print(len(Salary_filter)) 
