@@ -32,7 +32,7 @@ print(df_filtered.head())
 print(len(df_filtered)) 
 
 #selecting only numeric features for regression analysis. Also chose to remove redundant and unimportant features (pass_snaps, player_game_count)
-numeric_features = ["assists","pass_rush_percent","pass_rush_snaps","pressures","prp","stops","hits", "hurries", "misses", "sacks", "tackles"]
+numeric_features = ["pass_rush_snaps","pressures","stops","hits", "hurries", "misses", "sacks", "tackles"]
 df_numeric = df_filter[numeric_features]
 
 #must validate that theres no collinearity in our features. This was accounted for with the removal of redundant features
@@ -41,7 +41,7 @@ corr_matrix = df_numeric.corr()
 plt.figure(figsize=(10,8))
 sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", fmt=".2f")
 plt.title("Feature Correlation Heatmap")
-plt.show()
+#plt.show()
 
 #we must set up the standardization first to ensure a sack count can be compared to a snap count, which are on different scales
 scaler = StandardScaler()
@@ -49,8 +49,8 @@ df_scaled = pd.DataFrame(scaler.fit_transform(df_numeric), columns=numeric_featu
 
 regression_results = {}
 
-### **Regression for Tackles (excluding "hurries" as input)**
-X_tackles = df_scaled.drop(columns=["tackles", "hurries"])  # Removing "hurries"
+#tackles (excluding "hurries" as input)**
+X_tackles = df_scaled.drop(columns=["tackles", "hurries", "stops", "pressures"])  # Removing "hurries"
 y_tackles = df_scaled["tackles"]
 
 model_tackles = LinearRegression()
@@ -73,7 +73,7 @@ regression_results["sacks"] = {
     "Coefficients": dict(zip(X_sacks.columns, model_sacks.coef_))
 }
 #hurries, excluding pressures and snaps
-X_hurries = df_scaled.drop(columns=["hurries", "pressures", "pass_rush_snaps"])  
+X_hurries = df_scaled.drop(columns=["hurries", "pressures", "hits", "pass_rush_snaps"])  
 y_hurries = df_scaled["hurries"]
 
 model_hurries = LinearRegression()
@@ -84,7 +84,7 @@ regression_results["hurries"] = {
     "Coefficients": dict(zip(X_hurries.columns, model_hurries.coef_))
 }
 #misses, excluding nothing
-X_misses = df_scaled.drop(columns=["misses", "tackles"])  # Removing "tackles"
+X_misses = df_scaled.drop(columns=["misses", "tackles", "stops"])  # Removing "tackles"
 y_misses = df_scaled["misses"]
 
 model_misses = LinearRegression()
@@ -112,7 +112,7 @@ for stat, result in regression_results.items():
     print("Feature Coefficients:")
     for feature, coef in result["Coefficients"].items():
         print(f"  {feature}: {coef:.5f}")
-degree = 2  
+degree = 3  
 model = make_pipeline(PolynomialFeatures(degree), LinearRegression())
 
 # Example: Fit a polynomial regression model
@@ -126,3 +126,19 @@ y_pred = model.predict(X)
 r2_poly = model.score(X, y)
 print(f"Polynomial R² for Sacks: {r2_poly:.3f}")
 
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.pipeline import make_pipeline
+
+# Split into training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X_sacks, y_sacks, test_size=0.2, random_state=42)
+
+# Test polynomial degrees 1 through 5
+for degree in range(1, 6):
+    poly_model = make_pipeline(PolynomialFeatures(degree), LinearRegression())
+    poly_model.fit(X_train, y_train)
+    
+    train_r2 = poly_model.score(X_train, y_train)
+    test_r2 = poly_model.score(X_test, y_test)
+    
+    print(f"Degree {degree} - Train R²: {train_r2:.3f}, Test R²: {test_r2:.3f}")
