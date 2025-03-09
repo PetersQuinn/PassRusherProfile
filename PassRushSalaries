@@ -24,7 +24,7 @@ Salary_filter=SalaryStats[["Player", "Age","Total Value", "Avg./Year", "Total Gu
 
 #remove all corners, safeties, interiors, and linebackers from the dataset
 #was later discovered far more positions existed as potential outliers (like WR, QB, HB)
-#these also had to be removed
+#these also had to be removed as the pass rush percentage was not able to remove them
 NFL_filter=NFL_filter[NFL_filter["position"]!= "CB"]
 NFL_filter=NFL_filter[NFL_filter["position"]!= "S"]
 NFL_filter=NFL_filter[NFL_filter["position"]!= "LB"]
