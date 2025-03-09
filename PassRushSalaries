@@ -22,10 +22,17 @@ NFL_filter=NFLStats[["player", "team_name", "position", "player_id","player_game
 #keep only relevant dat from the salary stats (ignoring team name as this will come from NFL_Filter once merged)
 Salary_filter=SalaryStats[["Player", "Age","Total Value", "Avg./Year", "Total Guaranteed", "Fully Guaranteed", "Free Agency"]]
 
-#remove all corners, safeties, and linebackers from the dataset
+#remove all corners, safeties, interiors, and linebackers from the dataset
+#was later discovered far more positions existed as potential outliers (like WR, QB, HB)
+#these also had to be removed
 NFL_filter=NFL_filter[NFL_filter["position"]!= "CB"]
 NFL_filter=NFL_filter[NFL_filter["position"]!= "S"]
 NFL_filter=NFL_filter[NFL_filter["position"]!= "LB"]
+NFL_filter=NFL_filter[NFL_filter["position"]!= "DI"]
+NFL_filter=NFL_filter[NFL_filter["position"]!= "QB"]
+NFL_filter=NFL_filter[NFL_filter["position"]!= "WR"]
+NFL_filter=NFL_filter[NFL_filter["position"]!= "HB"]
+NFL_filter=NFL_filter[NFL_filter["position"]!= "TE"]
 
 #used chat for this function, will need to verify and validate!!!!
 def standardize_name(name):
@@ -43,3 +50,26 @@ print(len(NFL_filter))
 
 print(Salary_filter.head())
 print(len(Salary_filter)) 
+
+# Get unique player names from both datasets
+nfl_players = set(NFL_filter["player"])
+salary_players = set(Salary_filter["Player"])
+
+# Find players in NFL data but NOT in Salary data
+nfl_not_in_salary = nfl_players - salary_players
+
+# Find players in Salary data but NOT in NFL data
+salary_not_in_nfl = salary_players - nfl_players
+
+# Print unmatched names
+print("\nPlayers in NFL data but missing from Salary data:")
+for player in nfl_not_in_salary:
+    print(f"NFLFilter: {player}")
+
+print("\nPlayers in Salary data but missing from NFL data:")
+for player in salary_not_in_nfl:
+    print(f"SalaryFilter: {player}")
+
+# Count the number of mismatches for reference
+print(f"\nTotal unmatched in NFL filter: {len(nfl_not_in_salary)}")
+print(f"Total unmatched in Salary filter: {len(salary_not_in_nfl)}")
