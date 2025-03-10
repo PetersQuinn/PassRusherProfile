@@ -43,7 +43,7 @@ def standardize_name(name):
 
 #standardizes names to make merging more accurate
 NFL_filter["player"] = NFL_filter["player"].apply(standardize_name)
-Salary_filter["Player"] = Salary_filter["Player"].apply(standardize_name)
+Salary_filter.loc[:, "Player"] = Salary_filter["Player"].apply(standardize_name)
 
 #unfortunately there are a large number of salaried players who didn't take snaps in the 2024-2025 regular season
 #these players have to be removed from the salary data
@@ -69,6 +69,8 @@ Salary_filter = Salary_filter[~Salary_filter["Player"].isin(players_to_remove)]
 nfl_players = set(NFL_filter["player"])
 salary_players = set(Salary_filter["Player"])
 
+'''
+Had to comment out the code as it isn't necessary now, but was useful for identifying errors in data parsing.
 # Find players in NFL data but NOT in Salary data
 nfl_not_in_salary = nfl_players - salary_players
 
@@ -93,3 +95,40 @@ for player in salary_not_in_nfl:
 # Count the number of mismatches for reference
 print(f"\nTotal unmatched in NFL filter: {len(nfl_not_in_salary)}")
 print(f"Total unmatched in Salary filter: {len(salary_not_in_nfl)}")
+'''
+# Merge salary data into NFL stats based on player name
+Merged_Data = NFL_filter.merge(Salary_filter, left_on="player", right_on="Player", how="left")
+
+# Drop duplicate "Player" column after merging
+Merged_Data.drop(columns=["Player"], inplace=True)
+
+#selecting only numeric features for regression analysis. Also chose to remove redundant and unimportant features (pass_snaps, player_game_count)
+numeric_features = ["player_id","player_game_count", "assists", "franchise_id", "hits", "hurries", "misses", "pass_rush_percent", "pass_rush_snaps", "pass_snaps", "pressures", "prp", "sacks", "stops", "tackles", "Total Value", "Avg./Year", "Total Guaranteed", "Fully Guaranteed"]
+Merged_numeric = Merged_Data[numeric_features]
+
+#must validate that theres no collinearity in our features. This was accounted for with the removal of redundant features
+corr_matrix = Merged_numeric.corr()
+# Plot heatmap
+plt.figure(figsize=(10,8))
+sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", fmt=".2f")
+plt.title("Feature Correlation Heatmap")
+#plt.show()
+
+#we must set up the standardization first to ensure a sack count can be compared to a snap count, which are on different scales
+scaler = StandardScaler()
+Merged_scaled = pd.DataFrame(scaler.fit_transform(Merged_numeric), columns=numeric_features, index=Merged_numeric.index)
+
+regression_results = {}
+
+#Total Value Model (excluding collinearities)
+#tackles (excluding "hurries" as input)**
+X_tackles = df_scaled.drop(columns=["tackles", "hurries", "stops", "pressures"])  # Removing "hurries"
+y_tackles = df_scaled["tackles"]
+
+model_tackles = LinearRegression()
+model_tackles.fit(X_tackles, y_tackles)
+
+regression_results["tackles"] = {
+    "R² Score": model_tackles.score(X_tackles, y_tackles),
+    "Coefficients": dict(zip(X_tackles.columns, model_tackles.coef_))
+}
