@@ -45,11 +45,25 @@ def standardize_name(name):
 NFL_filter["player"] = NFL_filter["player"].apply(standardize_name)
 Salary_filter["Player"] = Salary_filter["Player"].apply(standardize_name)
 
-print(NFL_filter.head())
-print(len(NFL_filter)) 
+#unfortunately there are a large number of salaried players who didn't take snaps in the 2024-2025 regular season
+#these players have to be removed from the salary data
+players_to_remove = [
+    "frankie luvu", "kyron johnson", "cameron sample", "ryder anderson", "zach harrison",
+    "deshaan dixon", "william bradleyking", "nate lynn", "jihad ward", "bj ojulari",
+    "chris rumph ii", "drake jackson", "cj ravenell", "earnest brown iv", "bradley chubb",
+    "malcolm koonce", "jonathan garvin", "grayson murphy", "bralen trice", "derrick mclendon ii",
+    "durell nchami", "jeremiah martin", "marcus haynes", "ovie oghoufo", "josh onujiogu",
+    "elliott brown", "jermaine johnson ii", "larrell murchison", "tanoh kpassagnon", "deatrich wise",
+    "adedayo odeleye", "sam williams", "isaiah iton", "tyreke smith", "adetomiwa adebawore",
+    "daniel grzesiak", "anthony goodlow", "justin eboigbe", "david ebuka agoha", "pat oconnor",
+    "deslin alexandre", "tremon morrisbrash", "bj thompson", "chris collins", "john franklinmyers",
+    "jamree kromah", "julius welschof", "kentavius street", "lj collier", "malik hamm",
+    "thomas rush", "junior aho", "camron peterson", "mike morris", "viliami fehoko", "luiji vilain",
+    "samson ebukam", "dashawn hand", "andrew farmer", "carl jones jr"
+]
 
-print(Salary_filter.head())
-print(len(Salary_filter)) 
+#remove players who are in the `players_to_remove` list
+Salary_filter = Salary_filter[~Salary_filter["Player"].isin(players_to_remove)]
 
 # Get unique player names from both datasets
 nfl_players = set(NFL_filter["player"])
@@ -60,6 +74,12 @@ nfl_not_in_salary = nfl_players - salary_players
 
 # Find players in Salary data but NOT in NFL data
 salary_not_in_nfl = salary_players - nfl_players
+
+print(NFL_filter.head())
+print(len(NFL_filter)) 
+
+print(Salary_filter.head())
+print(len(Salary_filter)) 
 
 # Print unmatched names
 print("\nPlayers in NFL data but missing from Salary data:")
