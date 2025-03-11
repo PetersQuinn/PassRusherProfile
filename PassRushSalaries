@@ -47,6 +47,7 @@ Salary_filter.loc[:, "Player"] = Salary_filter["Player"].apply(standardize_name)
 
 #unfortunately there are a large number of salaried players who didn't take snaps in the 2024-2025 regular season
 #these players have to be removed from the salary data
+#is there a better way to do this?
 players_to_remove = [
     "frankie luvu", "kyron johnson", "cameron sample", "ryder anderson", "zach harrison",
     "deshaan dixon", "william bradleyking", "nate lynn", "jihad ward", "bj ojulari",
@@ -96,39 +97,169 @@ for player in salary_not_in_nfl:
 print(f"\nTotal unmatched in NFL filter: {len(nfl_not_in_salary)}")
 print(f"Total unmatched in Salary filter: {len(salary_not_in_nfl)}")
 '''
-# Merge salary data into NFL stats based on player name
+#merge salary data into NFL stats for one concise data set for our regressions
 Merged_Data = NFL_filter.merge(Salary_filter, left_on="player", right_on="Player", how="left")
 
-# Drop duplicate "Player" column after merging
+#drop duplicate "Player" column after merging
 Merged_Data.drop(columns=["Player"], inplace=True)
 
 #selecting only numeric features for regression analysis. Also chose to remove redundant and unimportant features (pass_snaps, player_game_count)
 numeric_features = ["player_id","player_game_count", "assists", "franchise_id", "hits", "hurries", "misses", "pass_rush_percent", "pass_rush_snaps", "pass_snaps", "pressures", "prp", "sacks", "stops", "tackles", "Total Value", "Avg./Year", "Total Guaranteed", "Fully Guaranteed"]
 Merged_numeric = Merged_Data[numeric_features]
 
+""" Not necessary for future runs of this code
 #must validate that theres no collinearity in our features. This was accounted for with the removal of redundant features
 corr_matrix = Merged_numeric.corr()
 # Plot heatmap
 plt.figure(figsize=(10,8))
 sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", fmt=".2f")
 plt.title("Feature Correlation Heatmap")
-#plt.show()
+#plt.show()"""
 
 #we must set up the standardization first to ensure a sack count can be compared to a snap count, which are on different scales
 scaler = StandardScaler()
 Merged_scaled = pd.DataFrame(scaler.fit_transform(Merged_numeric), columns=numeric_features, index=Merged_numeric.index)
 
+#pff csv's naturally leave empty stats rather than zeroes. I have to fix this here
+Merged_scaled.fillna(0, inplace=True)
+
+features_to_remove = ["pass_snaps", "hurries", "prp", "pass_rush_snaps", "stops", "misses", "player_id"]
+Merged_scaled = Merged_scaled.drop(columns=features_to_remove)
+
+""" Linear regression was NOT valuable in this case, as the R² scores were very low. A random forest approach is far more accurate.
+
 regression_results = {}
 
 #Total Value Model (excluding collinearities)
-#tackles (excluding "hurries" as input)**
-X_tackles = df_scaled.drop(columns=["tackles", "hurries", "stops", "pressures"])  # Removing "hurries"
-y_tackles = df_scaled["tackles"]
+X_total_value = Merged_scaled.drop(columns=["Total Value", "Avg./Year", "Total Guaranteed", "Fully Guaranteed"])  # Removing "Avg./Year"
+y_total_value = Merged_scaled["Total Value"]
 
-model_tackles = LinearRegression()
-model_tackles.fit(X_tackles, y_tackles)
+model_total_value = LinearRegression()
+model_total_value.fit(X_total_value, y_total_value)
 
-regression_results["tackles"] = {
-    "R² Score": model_tackles.score(X_tackles, y_tackles),
-    "Coefficients": dict(zip(X_tackles.columns, model_tackles.coef_))
+regression_results["Total Value"] = {
+    "R² Score": model_total_value.score(X_total_value, y_total_value),
+    "Coefficients": dict(zip(X_total_value.columns, model_total_value.coef_))
 }
+
+#Avg./Year Model (excluding collinearities)
+X_avg_year = Merged_scaled.drop(columns=["Total Value", "Avg./Year", "Total Guaranteed", "Fully Guaranteed"])  # Removing "Total Value"
+y_avg_year = Merged_scaled["Avg./Year"]
+model_avg_year = LinearRegression()
+model_avg_year.fit(X_avg_year, y_avg_year)
+
+regression_results["Avg./Year"] = {
+    "R² Score": model_avg_year.score(X_avg_year, y_avg_year),
+    "Coefficients": dict(zip(X_avg_year.columns, model_avg_year.coef_))
+}
+
+#Total Guaranteed Model (excluding collinearities)
+X_total_guaranteed = Merged_scaled.drop(columns=["Total Value", "Avg./Year", "Total Guaranteed", "Fully Guaranteed"])  # Removing "Total Value"
+y_total_guaranteed = Merged_scaled["Total Guaranteed"]
+model_total_guaranteed = LinearRegression()
+model_total_guaranteed.fit(X_total_guaranteed, y_total_guaranteed)
+
+regression_results["Total Guaranteed"] = {
+    "R² Score": model_total_guaranteed.score(X_total_guaranteed, y_total_guaranteed),
+    "Coefficients": dict(zip(X_total_guaranteed.columns, model_total_guaranteed.coef_))
+}
+
+#Fully Guaranteed Model (excluding collinearities)
+X_fully_guaranteed = Merged_scaled.drop(columns=["Total Value", "Avg./Year", "Total Guaranteed", "Fully Guaranteed"])  # Removing "Total Value"
+y_fully_guaranteed = Merged_scaled["Fully Guaranteed"]
+model_fully_guaranteed = LinearRegression()
+model_fully_guaranteed.fit(X_fully_guaranteed, y_fully_guaranteed)
+
+regression_results["Fully Guaranteed"] = {
+    "R² Score": model_fully_guaranteed.score(X_fully_guaranteed, y_fully_guaranteed),
+    "Coefficients": dict(zip(X_fully_guaranteed.columns, model_fully_guaranteed.coef_))
+}
+
+# Print regression results
+print("Regression Results:")
+for feature, results in regression_results.items():
+    print(f"\n{feature}:")
+    print(f"R² Score: {results['R² Score']}")
+    print("Coefficients:")
+    for feature_name, coefficient in results["Coefficients"].items():
+        print(f"  {feature_name}: {coefficient}")"""
+
+#we will need a series of data sets to draw conclusions for each of the salary stats.
+X_total_value = Merged_scaled.drop(columns=["Total Value", "Avg./Year", "Total Guaranteed", "Fully Guaranteed"])  # Removing "Avg./Year"
+y_total_value = Merged_scaled["Total Value"]
+X_avg_year = Merged_scaled.drop(columns=["Total Value", "Avg./Year", "Total Guaranteed", "Fully Guaranteed"])  # Removing "Total Value"
+y_avg_year = Merged_scaled["Avg./Year"]
+X_total_guaranteed = Merged_scaled.drop(columns=["Total Value", "Avg./Year", "Total Guaranteed", "Fully Guaranteed"])  # Removing "Total Value"
+y_total_guaranteed = Merged_scaled["Total Guaranteed"]
+X_fully_guaranteed = Merged_scaled.drop(columns=["Total Value", "Avg./Year", "Total Guaranteed", "Fully Guaranteed"])  # Removing "Total Value"
+y_fully_guaranteed = Merged_scaled["Fully Guaranteed"]
+
+"""
+VIF is used to ensure there's not a large collinearity between features. If there is, the model will be inaccurate.
+I utilized it to determine which features to drop, in combination with contextual understanding of each stat.
+It is not necessary to utilize in each run, and only clutters the terminal.
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+
+X = Merged_scaled.drop(columns=["Total Value", "Avg./Year", "Total Guaranteed", "Fully Guaranteed"])  # Remove outputs
+vif_data = pd.DataFrame()
+vif_data["Feature"] = X.columns
+vif_data["VIF"] = [variance_inflation_factor(X.values, i) for i in range(X.shape[1])]
+print(vif_data)
+"""
+from sklearn.ensemble import RandomForestRegressor
+
+
+#determining the random forest models and feature importance for total value
+total_random_forest = RandomForestRegressor(n_estimators=100, random_state=42)
+total_random_forest.fit(X_total_value, y_total_value)
+print("Random Forest Total Contract Value R² Score:", total_random_forest.score(X_total_value, y_total_value))
+
+importances = total_random_forest.feature_importances_
+total_importance = dict(zip(X_total_value.columns, importances))
+sorted_total_importance = sorted(total_importance.items(), key=lambda x: x[1], reverse=True)
+
+print("Feature Importances for Total Value:")
+for feature, importance in sorted_total_importance:
+    print(f"{feature}: {importance:.3f}")
+
+
+#determining the random forest models and feature importance for average value
+avg_random_forest = RandomForestRegressor(n_estimators=100, random_state=42)
+avg_random_forest.fit(X_avg_year, y_avg_year)
+print("Random Forest Average Value per Year R² Score:", avg_random_forest.score(X_avg_year, y_avg_year))
+
+ave_importances = avg_random_forest.feature_importances_
+total_ave_importance = dict(zip(X_avg_year.columns, ave_importances))
+sorted_total_ave_importance = sorted(total_ave_importance.items(), key=lambda x: x[1], reverse=True)
+
+print("Feature Importances for Average Value:")
+for feature, importance in sorted_total_ave_importance:
+    print(f"{feature}: {importance:.3f}")
+
+
+#determining the random forest models and feature importance for total guaranteed value
+totalG_random_forest = RandomForestRegressor(n_estimators=100, random_state=42)
+totalG_random_forest.fit(X_total_guaranteed, y_total_guaranteed)
+print("Random Forest Total Guaranteed Value R² Score:", totalG_random_forest.score(X_total_guaranteed, y_total_guaranteed))
+
+G_importances = totalG_random_forest.feature_importances_
+total_G_importance = dict(zip(X_total_guaranteed.columns, G_importances))
+sorted_total_G_importance = sorted(total_G_importance.items(), key=lambda x: x[1], reverse=True)
+
+print("Feature Importances for Total Guaranteed Value:")
+for feature, importance in sorted_total_G_importance:
+    print(f"{feature}: {importance:.3f}")
+
+
+#determining the random forest models and feature importance for fully guaranteed value
+full_random_forest = RandomForestRegressor(n_estimators=100, random_state=42)
+full_random_forest.fit(X_fully_guaranteed, y_fully_guaranteed)
+print("Random Forest Fully Guaranteed Value R² Score:", full_random_forest.score(X_fully_guaranteed, y_fully_guaranteed))
+
+FullG_importances = full_random_forest.feature_importances_
+total_FullG_importance = dict(zip(X_fully_guaranteed.columns, FullG_importances))
+sorted_total_FullG_importance = sorted(total_FullG_importance.items(), key=lambda x: x[1], reverse=True)
+
+print("Feature Importances for Fully Guaranteed Value:")
+for feature, importance in sorted_total_FullG_importance:
+    print(f"{feature}: {importance:.3f}")
