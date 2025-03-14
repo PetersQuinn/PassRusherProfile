@@ -185,13 +185,13 @@ for feature, results in regression_results.items():
         print(f"  {feature_name}: {coefficient}")"""
 
 #we will need a series of data sets to draw conclusions for each of the salary stats.
-X_total_value = Merged_scaled.drop(columns=["Total Value", "Avg./Year", "Total Guaranteed", "Fully Guaranteed"])  # Removing "Avg./Year"
+X_total_value = Merged_scaled.drop(columns=["Total Value", "Avg./Year", "Total Guaranteed", "Fully Guaranteed", "tackles", "hits", "assists"])  # Removing "Avg./Year"
 y_total_value = Merged_scaled["Total Value"]
-X_avg_year = Merged_scaled.drop(columns=["Total Value", "Avg./Year", "Total Guaranteed", "Fully Guaranteed"])  # Removing "Total Value"
+X_avg_year = Merged_scaled.drop(columns=["Total Value", "Avg./Year", "Total Guaranteed", "Fully Guaranteed", "tackles", "hits", "assists"])  # Removing "Total Value"
 y_avg_year = Merged_scaled["Avg./Year"]
-X_total_guaranteed = Merged_scaled.drop(columns=["Total Value", "Avg./Year", "Total Guaranteed", "Fully Guaranteed"])  # Removing "Total Value"
+X_total_guaranteed = Merged_scaled.drop(columns=["Total Value", "Avg./Year", "Total Guaranteed", "Fully Guaranteed", "assists"])  # Removing "Total Value"
 y_total_guaranteed = Merged_scaled["Total Guaranteed"]
-X_fully_guaranteed = Merged_scaled.drop(columns=["Total Value", "Avg./Year", "Total Guaranteed", "Fully Guaranteed"])  # Removing "Total Value"
+X_fully_guaranteed = Merged_scaled.drop(columns=["Total Value", "Avg./Year", "Total Guaranteed", "Fully Guaranteed", "tackles", "hits", "assists"])  # Removing "Total Value"
 y_fully_guaranteed = Merged_scaled["Fully Guaranteed"]
 
 """
@@ -252,7 +252,13 @@ for feature, importance in sorted_total_G_importance:
 
 
 #determining the random forest models and feature importance for fully guaranteed value
-full_random_forest = RandomForestRegressor(n_estimators=100, random_state=42)
+full_random_forest = RandomForestRegressor(
+    n_estimators=100,  # Keep default for now
+    max_depth=10,  # Prevent trees from growing too deep
+    min_samples_leaf=5,  # Require at least 5 samples per leaf
+    min_samples_split=10,  # Require at least 10 samples per split
+    random_state=42
+)
 full_random_forest.fit(X_fully_guaranteed, y_fully_guaranteed)
 print("Random Forest Fully Guaranteed Value R² Score:", full_random_forest.score(X_fully_guaranteed, y_fully_guaranteed))
 
@@ -266,6 +272,8 @@ for feature, importance in sorted_total_FullG_importance:
 
     from sklearn.model_selection import GridSearchCV
 
+"""
+temporarily commenting this out, currently testing for overfitting. Will return to this later.
 param_grid = {
     "n_estimators": [300, 500],  # More trees
     "max_depth": [10, 15, 20],  # More depth
@@ -285,3 +293,71 @@ print("Updated Best Hyperparameters for Total Value:", best_params)
 optimized_total_value_model = RandomForestRegressor(**best_params, random_state=42)
 optimized_total_value_model.fit(X_total_value, y_total_value)
 print("Updated Optimized Total Value R² Score:", optimized_total_value_model.score(X_total_value, y_total_value))
+"""
+from sklearn.model_selection import train_test_split
+
+
+
+# Split the data (80% training, 20% testing)
+X_train, X_test, y_train, y_test = train_test_split(X_total_value, y_total_value, test_size=0.2, random_state=42)
+
+# Recreate DataFrames with targets for analysis
+train_data = X_train.copy()
+train_data["Total Value"] = y_train  # Replace "target" with the actual salary column name
+
+test_data = X_test.copy()
+test_data["Total Value"] = y_test  # Same here
+
+sns.kdeplot(train_data["pressures"], label="Train", fill=True)
+sns.kdeplot(test_data["pressures"], label="Test", fill=True)
+plt.legend()
+plt.title("Pressure Distribution in Train and Test Sets")
+plt.show()
+
+# Train the model on training data
+rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+rf_model.fit(X_train, y_train)
+
+# Evaluate on both training and test sets
+train_r2 = rf_model.score(X_train, y_train)
+test_r2 = rf_model.score(X_test, y_test)
+
+print(f"Random Forest Training R² Score: {train_r2:.4f}")
+print(f"Random Forest Test R² Score: {test_r2:.4f}")
+
+# Convert feature importances to a DataFrame for visualization
+feature_importance_df = pd.DataFrame({
+    'Feature': X_total_value.columns,
+    'Importance': total_random_forest.feature_importances_
+}).sort_values(by='Importance', ascending=False)
+
+# Plot feature importance
+plt.figure(figsize=(10, 6))
+sns.barplot(data=feature_importance_df, x='Importance', y='Feature', palette="viridis")
+plt.xlabel("Feature Importance Score")
+plt.ylabel("Feature")
+plt.title("Feature Importance for Total Contract Value")
+plt.show()
+
+"""
+Needed a way to visualize the predicted vs. actual values to present my progress thusfar. The model is not ready and this will have to be returned to
+# Generate predictions using the trained Random Forest model
+y_pred = total_random_forest.predict(X_total_value)
+
+# Convert back to original scale - standardized
+y_actual = y_total_value * scaler.scale_[Merged_numeric.columns.get_loc("Total Value")] + scaler.mean_[Merged_numeric.columns.get_loc("Total Value")]
+y_pred_rescaled = y_pred * scaler.scale_[Merged_numeric.columns.get_loc("Total Value")] + scaler.mean_[Merged_numeric.columns.get_loc("Total Value")]
+
+# Scatterplot to compare actual vs. predicted values
+plt.figure(figsize=(8, 6))
+sns.scatterplot(x=y_actual, y=y_pred_rescaled, alpha=0.6)
+
+# 1:1 reference line (perfect predictions)
+plt.plot([min(y_actual), max(y_actual)], [min(y_actual), max(y_actual)], color='red', linestyle='dashed', label="Perfect Prediction Line")
+
+plt.xlabel("Actual Contract Value ($ Millions)")
+plt.ylabel("Predicted Contract Value ($ Millions)")
+plt.title("Predicted vs. Actual Contract Values")
+plt.legend()
+plt.show()"""
+
